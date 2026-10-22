@@ -126,11 +126,12 @@ body::after {
 
 /* map: tự vẽ bằng canvas, không cần tải bản đồ ngoài */
 .mapframe { padding: 0; position: relative; }
-#map { position: relative; width: 100%; line-height: 0; overflow: hidden; }
+#map { position: relative; width: 100%; line-height: 0; overflow-x: auto; overflow-y: hidden; background: #4fb0e8; }
+.world-wrap { position: relative; width: 100%; min-width: 660px; }
 #world { display: block; width: 100%; height: auto; image-rendering: pixelated; }
 #pins { position: absolute; inset: 0; }
 .map-tag {
-  position: absolute; z-index: 5; top: 10px; left: 10px; pointer-events: none; line-height: 1.15;
+  position: absolute; z-index: 5; bottom: 10px; left: 10px; pointer-events: none; line-height: 1.15;
   background: var(--ink); color: var(--butter); padding: 2px 10px; font-size: 20px; letter-spacing: 1px;
 }
 .pin {
@@ -162,12 +163,6 @@ body::after {
   transition: left .8s steps(8), top .8s steps(8);
 }
 .player canvas { width: 34px; height: 34px; image-rendering: pixelated; }
-@media (max-width: 520px) {
-  .pin .inner { transform: scale(.72); }
-  .pin.on .inner { animation-name: hopSm; }
-  .player, .player canvas { width: 26px; height: 26px; }
-}
-@keyframes hopSm { from { transform: scale(.72); } to { transform: scale(.72) translateY(-6px); } }
 
 /* stop list */
 .stops { display: flex; gap: 12px; flex-wrap: wrap; }
@@ -253,7 +248,7 @@ body::after {
     <dl class="ticket pix" id="ticket"></dl>
     <div class="mapframe pix">
       <span class="map-tag">WORLD 1 · SÀI GÒN</span>
-      <div id="map"><canvas id="world" role="img" aria-label="Bản đồ pixel các điểm hẹn"></canvas><div id="pins"></div></div>
+      <div id="map"><div class="world-wrap"><canvas id="world" role="img" aria-label="Bản đồ thị trấn pixel với các điểm hẹn"></canvas><div id="pins"></div></div></div>
     </div>
     <div class="stops" id="stops"></div>
     <div class="detail pix" id="detail" aria-live="polite"></div>
@@ -384,116 +379,371 @@ const PLAN = {
   const stageLabel = (i) => (i === 0 ? "START" : i === stages.length - 1 ? "STAGE CUỐI" : "STAGE " + (i + 1));
   let selected = 0;
 
-  // Bản đồ game: lưới W x H ô, mỗi ô CELL px, phóng to bằng CSS không làm mượt.
-  const W = 80, H = 52, CELL = 8;
-  const SLOTS = [[10, 40], [24, 26], [38, 38], [54, 22], [66, 36], [72, 12]];
+  // Bản đồ thị trấn: vẽ từng pixel trên canvas W x H rồi phóng to bằng CSS không làm mượt.
+  const W = 320, H = 224;
+  // Vị trí các điểm hẹn theo thứ tự (điểm dưới chân ghim): nhà em, đài phun nước, rạp lều, trung tâm thương mại, bến hồ, toà tháp.
+  const SLOTS = [[47, 136], [120, 99], [120, 146], [193, 139], [265, 58], [193, 197]];
   const total = Math.min(SLOTS.length, stages.length + (PLAN.secretStops || 0));
-  const route = SLOTS.slice(0, Math.max(total, 2));
+  const route = SLOTS.slice(0, Math.max(total, 1));
 
   function drawWorld() {
     const cv = $("world");
-    cv.width = W * CELL; cv.height = H * CELL;
+    cv.width = W; cv.height = H;
     const ctx = cv.getContext("2d");
-    const C = {
-      grass: "#8fdc9f", grass2: "#86d597", water: "#7cc4f2", ripple: "#b5e2fb", sand: "#f3dfae",
-      road: "#f6e7c8", edge: "#c9a27a", dash: "#ffffff", plank: "#9a6a43", rail: "#6b4a2e",
-      tree: "#2f9a64", leaf: "#5cc98f", trunk: "#9a6a43", ink: "#2d1e3a",
-      wall: "#fff6ea", wall2: "#b9a6ff", wall3: "#ffb3c9", win: "#ffd84d", roof: "#ff5d8f", f1: "#ff5d8f", f2: "#ffd84d"
+    const P = {
+      sea: "#4fb0e8", seaLt: "#8fd0f5", grass: "#8fd46f", grass2: "#a3df7f", grass3: "#7cc45f",
+      edge: "#5aa04a", cliff: "#b98a5e", cliffDk: "#8a6240", shadow: "#6fb455",
+      road: "#d8aa6a", roadEdge: "#b8874e", roadLt: "#e8c48a",
+      water: "#4fb0e8", waterLt: "#9fdcfb", waterEdge: "#2f7fb8", lily: "#3f9a4a",
+      stone: "#e2ddd2", stoneLn: "#c4bdb0", stoneDk: "#a59d8f",
+      wall: "#f6eedf", wallSh: "#d9c9ad", win: "#7fc8f0", winLt: "#d4f0ff", door: "#8a5a3a", ink: "#3a2a35",
+      tree: "#3fa04a", treeLt: "#6cc85a", treeDk: "#26703a", trunk: "#7a5030",
+      soil: "#9a6a43", f1: "#ff5d8f", f2: "#ffd84d", f3: "#ffffff", f4: "#b9a6ff",
+      fence: "#c9945a", fenceDk: "#8a5a3a", asphalt: "#8a8494", plank: "#b07f52", plankDk: "#7a5030",
+      path: "#ff3d7f", pathDk: "#c9245e"
     };
-    const grid = Array.from({ length: H }, () => Array(W).fill("grass"));
-    const px = (x, y, c) => { if (x >= 0 && y >= 0 && x < W && y < H) { ctx.fillStyle = c; ctx.fillRect(x * CELL, y * CELL, CELL, CELL); } };
+    const ROOF = {
+      red: ["#d9503f", "#a8352a", "#f2846c"], blue: ["#3a6fd0", "#2a4f9a", "#6f9cf0"],
+      orange: ["#e8843a", "#b8602a", "#f6ad6c"], green: ["#3a9a6a", "#2a7050", "#6cc895"],
+      purple: ["#8a5ac8", "#62409a", "#b18cec"], pink: ["#ff6f9c", "#c94b74", "#ffb3c9"],
+      teal: ["#2fa8b8", "#1f7a88", "#7fd8e2"], navy: ["#344a8a", "#22305e", "#5c74b8"]
+    };
+
     let seed = 20261025;
     const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
+    const rect = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); };
+    const dot = (x, y, c) => rect(x, y, 1, 1, c);
+    const N = W * H, id = (x, y) => y * W + x, inb = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
+    const land = new Uint8Array(N), used = new Uint8Array(N), road = new Uint8Array(N), center = new Uint8Array(N), tused = new Uint8Array(N);
+    const fill = (arr, x, y, w, h) => { for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) if (inb(xx, yy)) arr[id(xx, yy)] = 1; };
+    const use = (x, y, w, h) => fill(used, x, y, w, h);
+    const isFree = (x, y, w, h) => {
+      for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) {
+        if (!inb(xx, yy)) return false;
+        const i = id(xx, yy);
+        if (!land[i] || used[i] || road[i]) return false;
+      }
+      return true;
+    };
 
-    // cỏ
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) px(x, y, ((x >> 2) + (y >> 2)) % 2 ? C.grass : C.grass2);
+    // biển
+    rect(0, 0, W, H, P.sea);
+    for (let i = 0; i < 260; i++) rect(ri(0, W - 4), ri(0, H - 1), ri(2, 4), 1, P.seaLt);
 
-    // sông uốn lượn từ trên xuống
-    for (let y = 0; y < H; y++) {
-      const cx = Math.round(45 + 5 * Math.sin(y / 6));
-      for (let x = cx - 3; x <= cx + 3; x++) {
-        const bank = x === cx - 3 || x === cx + 3;
-        grid[y][x] = bank ? "sand" : "water";
-        px(x, y, bank ? C.sand : C.water);
-        if (!bank && rnd() < 0.12) px(x, y, C.ripple);
+    // đất liền: ghép nhiều khối cho viền gồ ghề
+    [[18, 24, 286, 176], [96, 2, 48, 24], [170, 6, 72, 20], [6, 70, 14, 70], [302, 96, 12, 60],
+     [40, 198, 100, 12], [200, 198, 80, 10], [250, 18, 50, 8]].forEach((r) => fill(land, ...r));
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if (!land[id(x, y)]) continue;
+      dot(x, y, rnd() < 0.07 ? P.grass2 : rnd() < 0.05 ? P.grass3 : P.grass);
+    }
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if (!land[id(x, y)]) continue;
+      const out = (dx, dy) => !inb(x + dx, y + dy) || !land[id(x + dx, y + dy)];
+      if (out(-1, 0) || out(1, 0) || out(0, -1)) dot(x, y, P.edge);
+      if (out(0, 1)) {
+        dot(x, y, P.edge);
+        for (let k = 1; k <= 4; k++) if (inb(x, y + k) && !land[id(x, y + k)]) dot(x, y + k, k === 4 ? P.cliffDk : P.cliff);
       }
     }
-
-    // đường đi hình chữ L nối các điểm
-    const roadCells = [];
-    const mark = (x, y) => roadCells.push([x, y]);
-    for (let i = 0; i < route.length - 1; i++) {
-      const [x1, y1] = route[i], [x2, y2] = route[i + 1];
-      const sx = Math.sign(x2 - x1), sy = Math.sign(y2 - y1);
-      for (let x = x1; x !== x2; x += sx) mark(x, y1);
-      for (let y = y1; y !== y2 + sy; y += sy || 1) { mark(x2, y); if (!sy) break; }
+    // cỏ lún phún
+    for (let i = 0; i < 160; i++) {
+      const x = ri(20, 300), y = ri(26, 196);
+      if (!land[id(x, y)]) continue;
+      dot(x, y, P.grass3); dot(x + 2, y, P.grass3); dot(x + 1, y + 1, P.grass3);
     }
-    const isRoad = new Set();
-    roadCells.forEach(([x, y]) => { for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) isRoad.add((x + dx) + "," + (y + dy)); });
-    // viền đường
-    isRoad.forEach((k) => {
-      const [x, y] = k.split(",").map(Number);
-      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
-        const nk = (x + dx) + "," + (y + dy);
-        if (!isRoad.has(nk) && grid[y + dy] && grid[y + dy][x + dx] && grid[y + dy][x + dx] !== "edge") {
-          const water = grid[y + dy][x + dx] === "water" || grid[y + dy][x + dx] === "sand";
-          px(x + dx, y + dy, water ? C.rail : C.edge);
-          grid[y + dy][x + dx] = water ? grid[y + dy][x + dx] : "edge";
+
+    // đường đất
+    const ROADS = [[20, 62, 282, 6], [20, 106, 282, 6], [20, 152, 282, 6],
+                   [82, 26, 6, 172], [152, 26, 6, 172], [228, 26, 6, 172], [118, 26, 6, 38]];
+    ROADS.forEach(([x, y, w, h]) => {
+      fill(road, x, y, w, h);
+      if (w > h) fill(center, x + 2, y + 2, w - 4, 2); else fill(center, x + 2, y + 2, 2, h - 4);
+    });
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if (!road[id(x, y)]) continue;
+      const edge = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => !inb(x + dx, y + dy) || !road[id(x + dx, y + dy)]);
+      dot(x, y, edge ? P.roadEdge : rnd() < 0.08 ? P.roadLt : P.road);
+    }
+
+    // ---------- công trình ----------
+    function outline(x, y, w, h) { rect(x - 1, y, 1, h, P.ink); rect(x + w, y, 1, h, P.ink); rect(x, y - 1, w, 1, P.ink); rect(x, y + h, w, 1, P.ink); }
+    function shadow(x, y, w, h) { rect(x + w + 1, y + 2, 2, h, P.shadow); rect(x + 2, y + h + 1, w, 2, P.shadow); }
+
+    function house(x, y, w, h, roof) {
+      const [r, rd, rl] = ROOF[roof];
+      const rh = Math.round(h * 0.55);
+      shadow(x, y, w, h);
+      rect(x, y, w, rh, r);
+      for (let yy = y + 2; yy < y + rh - 2; yy += 3) rect(x, yy, w, 1, rd);
+      rect(x + 1, y, w - 2, 1, rl);
+      rect(x, y + rh - 2, w, 2, rd);
+      rect(x, y + rh, w, h - rh, P.wall);
+      rect(x, y + rh, w, 1, P.wallSh);
+      const dx = x + Math.floor(w / 2) - 1;
+      for (let wx = x + 2; wx + 2 < x + w - 1; wx += 5) {
+        if (wx + 2 >= dx - 1 && wx <= dx + 3) continue;
+        rect(wx, y + rh + 2, 3, 2, P.win); dot(wx, y + rh + 2, P.winLt);
+      }
+      rect(dx, y + h - 4, 3, 4, P.door); dot(dx + 2, y + h - 2, P.f2);
+      outline(x, y, w, h);
+      use(x - 2, y - 2, w + 6, h + 6);
+    }
+
+    function bigBuilding(x, y, w, h, roof, sign) {
+      const [r, rd, rl] = ROOF[roof];
+      const rh = Math.round(h * 0.4);
+      shadow(x, y, w, h);
+      rect(x, y, w, rh, r);
+      for (let yy = y + 2; yy < y + rh - 1; yy += 3) rect(x, yy, w, 1, rd);
+      rect(x + 1, y, w - 2, 1, rl);
+      rect(x, y + rh - 1, w, 1, rd);
+      rect(x, y + rh, w, h - rh, P.wall);
+      for (let yy = y + rh + 2; yy < y + h - 6; yy += 4)
+        for (let xx = x + 2; xx < x + w - 3; xx += 4) { rect(xx, yy, 2, 2, P.win); dot(xx, yy, P.winLt); }
+      const dw = Math.max(6, Math.floor(w / 4));
+      rect(x + Math.floor((w - dw) / 2), y + h - 5, dw, 5, P.win);
+      rect(x + Math.floor(w / 2), y + h - 5, 1, 5, P.ink);
+      if (sign) { rect(x + Math.floor(w / 2) - 5, y + rh + 1, 10, 3, sign); }
+      outline(x, y, w, h);
+      use(x - 2, y - 2, w + 6, h + 6);
+    }
+
+    function tower(x, y, w, h) {
+      shadow(x, y, w, h);
+      rect(x, y, w, h, "#c8d4ea");
+      rect(x, y, 3, h, "#e6edf8");
+      for (let yy = y + 6; yy < y + h - 6; yy += 3)
+        for (let xx = x + 4; xx < x + w - 2; xx += 3) dot(xx, yy, P.win), dot(xx + 1, yy, P.win);
+      const [r, rd] = ROOF.navy;
+      rect(x - 1, y, w + 2, 4, r); rect(x - 1, y + 3, w + 2, 1, rd);
+      rect(x + Math.floor(w / 2), y - 6, 1, 6, P.ink); dot(x + Math.floor(w / 2), y - 7, P.f1);
+      rect(x + Math.floor(w / 2) - 3, y + h - 5, 7, 5, P.win);
+      outline(x, y, w, h);
+      use(x - 2, y - 8, w + 6, h + 12);
+    }
+
+    function pagoda(x, y) {
+      const tiers = [[6, 0, 14], [3, 7, 20], [0, 14, 26]];
+      shadow(x, y, 26, 22);
+      rect(x + 7, y + 4, 12, 18, "#d9503f");
+      tiers.forEach(([ox, oy, w]) => {
+        rect(x + ox, y + oy, w, 4, ROOF.navy[0]);
+        rect(x + ox, y + oy + 3, w, 1, ROOF.navy[1]);
+        rect(x + ox + 1, y + oy, w - 2, 1, ROOF.navy[2]);
+        rect(x + ox + 2, y + oy + 4, w - 4, 3, "#d9503f");
+        for (let xx = x + ox + 3; xx < x + ox + w - 3; xx += 3) dot(xx, y + oy + 5, P.f2);
+      });
+      rect(x + 12, y - 4, 2, 4, P.ink); dot(x + 12, y - 5, P.f2);
+      rect(x + 11, y + 18, 4, 4, P.door);
+      use(x - 2, y - 6, 30, 30);
+    }
+
+    function tent(x, y, w, h) {
+      rect(x + 2, y + h + 1, w, 2, P.shadow);
+      const c = (w - 1) / 2;
+      for (let col = 0; col < w; col++) {
+        const t = 1 - Math.abs(col - c) / c;
+        const top = y + Math.round((1 - t) * h * 0.5);
+        const stripe = Math.floor(col / 3) % 2 ? "#ffffff" : "#e8443a";
+        rect(x + col, top, 1, y + h - top, stripe);
+        dot(x + col, top, P.ink);
+      }
+      rect(x, y + h - 6, w, 1, "#a8352a");
+      rect(x + Math.floor(c) - 3, y + h - 7, 7, 7, P.ink);
+      rect(x + Math.floor(c) - 2, y + h - 6, 5, 6, "#5a2a3a");
+      rect(x + Math.floor(c), y - 6, 1, 7, P.ink); rect(x + Math.floor(c) + 1, y - 6, 4, 2, P.f2);
+      rect(x, y + h, w, 1, P.ink);
+      use(x - 2, y - 8, w + 6, h + 12);
+    }
+
+    function plaza(x, y, w, h) {
+      rect(x, y, w, h, P.stone);
+      for (let yy = y; yy < y + h; yy += 4) rect(x, yy, w, 1, P.stoneLn);
+      for (let yy = y; yy < y + h; yy += 4) for (let xx = x + ((yy - y) / 4 % 2 ? 2 : 0); xx < x + w; xx += 4) rect(xx, yy, 1, 4, P.stoneLn);
+      rect(x, y, w, 1, P.stoneDk); rect(x, y + h - 1, w, 1, P.stoneDk); rect(x, y, 1, h, P.stoneDk); rect(x + w - 1, y, 1, h, P.stoneDk);
+      use(x, y, w, h);
+    }
+
+    function fountain(cx, cy, r) {
+      for (let dy = -r - 2; dy <= r + 2; dy++) for (let dx = -r - 2; dx <= r + 2; dx++) {
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d <= r - 2) dot(cx + dx, cy + dy, (dx + dy) % 5 === 0 ? P.waterLt : P.water);
+        else if (d <= r) dot(cx + dx, cy + dy, P.stoneDk);
+        else if (d <= r + 1) dot(cx + dx, cy + dy, P.ink);
+      }
+      rect(cx - 1, cy - 3, 3, 4, P.stone); rect(cx, cy - 6, 1, 3, P.waterLt);
+      dot(cx - 2, cy - 5, P.waterLt); dot(cx + 2, cy - 5, P.waterLt); dot(cx, cy - 7, "#ffffff");
+      use(cx - r - 2, cy - r - 2, 2 * r + 5, 2 * r + 5);
+    }
+
+    function pond(x, y, w, h) {
+      rect(x + 1, y, w - 2, h, P.waterEdge); rect(x, y + 1, w, h - 2, P.waterEdge);
+      rect(x + 2, y + 1, w - 4, h - 2, P.water); rect(x + 1, y + 2, w - 2, h - 4, P.water);
+      for (let i = 0; i < Math.max(2, (w * h) / 60); i++) rect(ri(x + 3, x + w - 6), ri(y + 2, y + h - 3), 3, 1, P.waterLt);
+      for (let i = 0; i < Math.max(1, (w * h) / 150); i++) { const lx = ri(x + 3, x + w - 5), ly = ri(y + 2, y + h - 4); rect(lx, ly, 2, 2, P.lily); dot(lx + 1, ly, P.f1); }
+      use(x - 1, y - 1, w + 2, h + 2);
+    }
+
+    function flowerBed(x, y, w, h) {
+      rect(x, y, w, h, P.soil);
+      const cs = [P.f1, P.f2, P.f3, P.f4];
+      for (let yy = y + 1; yy < y + h - 1; yy += 3) {
+        const c = cs[((yy - y) / 3) % 4];
+        for (let xx = x + 1; xx < x + w - 1; xx += 2) { dot(xx, yy, c); dot(xx, yy + 1, P.tree); }
+      }
+      outline(x, y, w, h);
+      use(x - 1, y - 1, w + 2, h + 2);
+    }
+
+    function fence(x, y, w, h) {
+      rect(x, y, w, 1, P.fence); rect(x, y + h - 1, w, 1, P.fence); rect(x, y, 1, h, P.fence); rect(x + w - 1, y, 1, h, P.fence);
+      for (let xx = x; xx < x + w; xx += 3) { rect(xx, y - 1, 1, 2, P.fenceDk); rect(xx, y + h - 2, 1, 2, P.fenceDk); }
+      for (let yy = y; yy < y + h; yy += 3) { dot(x, yy, P.fenceDk); dot(x + w - 1, yy, P.fenceDk); }
+    }
+
+    function crops(x, y, w, h) {
+      rect(x, y, w, h, P.soil);
+      for (let yy = y + 1; yy < y + h - 1; yy += 3) for (let xx = x + 1; xx < x + w - 1; xx += 2) { dot(xx, yy, P.treeLt); dot(xx, yy + 1, P.tree); }
+      use(x - 1, y - 1, w + 2, h + 2);
+    }
+
+    function parking(x, y, w, h) {
+      rect(x, y, w, h, P.asphalt);
+      const cars = ["#ff5d8f", "#3a6fd0", "#ffd84d", "#ffffff", "#3a9a6a", "#e8843a"];
+      for (let yy = y + 2; yy + 7 < y + h; yy += 9) {
+        for (let xx = x + 2; xx + 5 < x + w; xx += 7) {
+          rect(xx + 6, yy, 1, 8, "#ffffff");
+          if (rnd() < 0.75) { const c = cars[ri(0, cars.length - 1)]; rect(xx, yy + 1, 5, 7, c); rect(xx + 1, yy + 2, 3, 2, P.win); rect(xx, yy + 8, 5, 1, P.ink); }
         }
       }
-    });
-    // mặt đường, đoạn qua sông là cầu gỗ
-    isRoad.forEach((k) => {
-      const [x, y] = k.split(",").map(Number);
-      if (!grid[y] || grid[y][x] === undefined) return;
-      const overWater = grid[y][x] === "water" || grid[y][x] === "sand";
-      px(x, y, overWater ? ((x + y) % 2 ? C.plank : "#b07f52") : C.road);
-      grid[y][x] = "road";
-    });
-    roadCells.forEach(([x, y], i) => { if (i % 4 < 2 && grid[y][x] === "road") px(x, y, C.dash); });
+      outline(x, y, w, h);
+      use(x - 1, y - 1, w + 2, h + 2);
+    }
 
-    const free = (x, y, w, h, pad) => {
-      for (let yy = y - pad; yy < y + h + pad; yy++) for (let xx = x - pad; xx < x + w + pad; xx++) {
-        if (yy < 0 || xx < 0 || yy >= H || xx >= W) return false;
-        if (grid[yy][xx] !== "grass") return false;
-      }
-      return !route.some(([sx, sy]) => Math.abs(sx - x) < 6 && Math.abs(sy - y) < 8);
+    function pool(x, y, w, h) {
+      rect(x, y, w, h, "#ffffff");
+      rect(x + 2, y + 2, w - 4, h - 4, "#6fd0f5");
+      for (let yy = y + 5; yy < y + h - 3; yy += 4) rect(x + 3, yy, w - 6, 1, "#ffffff");
+      outline(x, y, w, h);
+      use(x - 1, y - 1, w + 2, h + 2);
+    }
+
+    function dock(x, y, len) {
+      for (let yy = y; yy < y + len; yy++) { rect(x, yy, 7, 1, yy % 2 ? P.plank : P.plankDk); }
+      rect(x - 1, y, 1, len, P.ink); rect(x + 7, y, 1, len, P.ink);
+      rect(x - 3, y - 9, 13, 3, ROOF.red[0]); rect(x - 3, y - 7, 13, 1, ROOF.red[1]);
+      rect(x - 2, y - 6, 1, 6, P.plankDk); rect(x + 8, y - 6, 1, 6, P.plankDk);
+      rect(x - 2, y - 1, 11, 2, P.plank);
+    }
+
+    function tree(x, y) {
+      const T = ["..ddddd..", ".dlllmmd.", "dllmmmmmd", "dlmmmmmmd", "dmmmmmmkd", "dmmmmmkkd", ".dmmkkkd.", "..ddddd.."];
+      const col = { d: P.treeDk, l: P.treeLt, m: P.tree, k: P.treeDk };
+      rect(x + 2, y + 9, 8, 2, P.shadow);
+      rect(x + 3, y + 7, 3, 3, P.trunk);
+      T.forEach((row, yy) => [...row].forEach((ch, xx) => { if (col[ch]) dot(x + xx, y + yy, col[ch]); }));
+      fill(tused, x + 1, y + 1, 7, 7);
+    }
+    function blossom(x, y) {
+      tree(x, y);
+      for (let i = 0; i < 6; i++) dot(x + ri(1, 7), y + ri(1, 6), i % 2 ? "#ffd1e0" : P.f1);
+    }
+    function bench(x, y) { rect(x, y, 5, 1, P.plank); rect(x, y + 1, 5, 1, P.plankDk); dot(x, y + 2, P.ink); dot(x + 4, y + 2, P.ink); use(x, y, 5, 3); }
+    function lamp(x, y) { rect(x, y, 1, 5, P.ink); rect(x - 1, y - 1, 3, 1, P.ink); dot(x, y - 1, P.f2); use(x - 1, y - 1, 3, 6); }
+    function bush(x, y) { rect(x, y, 5, 3, P.tree); rect(x + 1, y, 2, 1, P.treeLt); rect(x, y + 3, 5, 1, P.treeDk); use(x, y, 5, 4); }
+
+    // khu đền trên đồi
+    plaza(104, 20, 32, 6);
+    pagoda(107, 4);
+    blossom(97, 8); blossom(133, 10);
+    // khối hàng 1
+    house(30, 34, 18, 16, "red"); house(56, 32, 18, 18, "blue");
+    flowerBed(91, 32, 24, 10); bench(94, 46); bench(104, 46);
+    house(128, 32, 18, 16, "orange");
+    bigBuilding(176, 8, 50, 26, "blue", P.f2);
+    plaza(184, 38, 34, 22); fountain(201, 49, 5);
+    pond(240, 30, 56, 24);
+    dock(262, 40, 18);
+    // khối hàng 2
+    house(30, 72, 16, 14, "orange"); house(56, 70, 20, 16, "green"); pond(30, 90, 22, 12);
+    plaza(96, 72, 48, 30); fountain(120, 85, 10);
+    bush(92, 70); bush(144, 70); bush(92, 98); bush(144, 98);
+    bench(100, 98); bench(134, 98); lamp(98, 76); lamp(142, 76);
+    flowerBed(161, 72, 26, 28);
+    house(196, 70, 22, 16, "purple"); house(198, 90, 20, 13, "red");
+    fence(238, 71, 32, 31); crops(240, 73, 28, 27);
+    house(276, 70, 20, 15, "blue"); house(276, 89, 20, 14, "orange");
+    // khối hàng 3: nhà em
+    fence(28, 114, 40, 36);
+    house(36, 118, 22, 18, "pink");
+    flowerBed(30, 140, 10, 6); flowerBed(56, 140, 10, 6);
+    for (let yy = 137; yy < 150; yy++) rect(46, yy, 3, 1, yy % 2 ? P.stone : P.stoneLn);
+    use(46, 136, 3, 14);
+    tent(100, 116, 40, 30);
+    lamp(94, 130); lamp(146, 130);
+    plaza(160, 113, 66, 38);
+    bigBuilding(166, 114, 54, 24, "teal", P.f1);
+    bench(170, 144); bench(212, 144);
+    house(240, 116, 18, 15, "green"); house(266, 116, 18, 15, "red"); house(252, 134, 20, 14, "blue");
+    // khối hàng 4
+    house(30, 162, 18, 15, "blue"); house(56, 162, 18, 15, "red"); house(42, 181, 18, 14, "orange");
+    parking(92, 161, 26, 34);
+    tower(181, 160, 24, 36);
+    house(238, 162, 24, 18, "orange"); pool(268, 162, 28, 22);
+
+    // cây phủ những chỗ còn trống
+    // cây được phép chồng nhau thành từng lùm, chỉ cần cách công trình và đường
+    const spots = [];
+    const treeGap = (x, y) => { for (let yy = y + 2; yy < y + 7; yy++) for (let xx = x + 2; xx < x + 7; xx++) if (tused[id(xx, yy)]) return false; return true; };
+    for (let t = 0; t < 4000; t++) {
+      const x = ri(4, W - 12), y = ri(2, H - 14);
+      if (isFree(x - 1, y - 1, 11, 13) && treeGap(x, y)) { fill(tused, x + 2, y + 2, 5, 5); spots.push([x, y]); }
+    }
+    spots.sort((a, b) => a[1] - b[1]).forEach(([x, y]) => (rnd() < 0.12 ? blossom(x, y) : tree(x, y)));
+    // hoa dại
+    for (let t = 0; t < 300; t++) {
+      const x = ri(20, 300), y = ri(4, 206);
+      if (isFree(x, y, 1, 3) && !tused[id(x, y)] && !tused[id(x, y + 2)]) dot(x, y, [P.f1, P.f2, P.f3][ri(0, 2)]);
+    }
+
+    // đường đi giữa các điểm hẹn đã công bố: tìm đường ngắn nhất theo tim đường
+    const nearestCenter = ([sx, sy]) => {
+      let best = null, bd = 1e9;
+      for (let y = Math.max(0, sy - 30); y < Math.min(H, sy + 30); y++)
+        for (let x = Math.max(0, sx - 30); x < Math.min(W, sx + 30); x++)
+          if (center[id(x, y)]) { const d = Math.abs(x - sx) + Math.abs(y - sy); if (d < bd) { bd = d; best = [x, y]; } }
+      return best;
     };
-    const claim = (x, y, w, h) => { for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) grid[yy][xx] = "deco"; };
-
-    // khu phố bên kia sông
-    for (let t = 0; t < 120; t++) {
-      const w = 3 + Math.floor(rnd() * 2), h = 4 + Math.floor(rnd() * 6);
-      const x = 54 + Math.floor(rnd() * 24), y = 2 + Math.floor(rnd() * 14);
-      if (!free(x, y, w, h, 1)) continue;
-      claim(x, y, w, h);
-      const wall = [C.wall, C.wall2, C.wall3][Math.floor(rnd() * 3)];
-      for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) {
-        const edge = xx === x || xx === x + w - 1 || yy === y || yy === y + h - 1;
-        px(xx, yy, edge ? C.ink : ((yy - y) % 2 === 0 && rnd() < 0.7 ? C.win : wall));
+    function bfs(a, b) {
+      const prev = new Int32Array(N).fill(-1), q = [id(a[0], a[1])];
+      prev[q[0]] = q[0];
+      for (let h = 0; h < q.length; h++) {
+        const cur = q[h];
+        if (cur === id(b[0], b[1])) break;
+        const x = cur % W, y = (cur - x) / W;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = x + dx, ny = y + dy;
+          if (!inb(nx, ny)) continue;
+          const n = id(nx, ny);
+          if (center[n] && prev[n] === -1) { prev[n] = cur; q.push(n); }
+        }
       }
+      const out = []; let c = id(b[0], b[1]);
+      if (prev[c] === -1) return out;
+      while (c !== prev[c]) { out.push(c); c = prev[c]; }
+      return out.reverse();
     }
-    // nhà nhỏ khu dân cư
-    for (let t = 0; t < 80; t++) {
-      const x = 2 + Math.floor(rnd() * 34), y = 24 + Math.floor(rnd() * 26);
-      if (!free(x, y, 4, 4, 1)) continue;
-      claim(x, y, 4, 4);
-      px(x + 1, y, C.ink); px(x + 2, y, C.ink);
-      for (let xx = x; xx < x + 4; xx++) px(xx, y + 1, C.roof);
-      px(x, y + 2, C.ink); px(x + 1, y + 2, C.wall); px(x + 2, y + 2, C.win); px(x + 3, y + 2, C.ink);
-      px(x, y + 3, C.ink); px(x + 1, y + 3, C.trunk); px(x + 2, y + 3, C.wall); px(x + 3, y + 3, C.ink);
-    }
-    // cây
-    for (let t = 0; t < 400; t++) {
-      const x = Math.floor(rnd() * (W - 2)), y = Math.floor(rnd() * (H - 3));
-      if (!free(x, y, 2, 3, 0)) continue;
-      claim(x, y, 2, 3);
-      px(x, y, C.leaf); px(x + 1, y, C.tree); px(x, y + 1, C.tree); px(x + 1, y + 1, C.tree); px(x, y + 2, C.trunk);
-    }
-    // hoa
-    for (let t = 0; t < 160; t++) {
-      const x = Math.floor(rnd() * W), y = Math.floor(rnd() * H);
-      if (grid[y][x] === "grass") px(x, y, rnd() < 0.5 ? C.f1 : C.f2);
+    const shown = route.slice(0, stages.length);
+    for (let i = 0; i < shown.length - 1; i++) {
+      const a = nearestCenter(shown[i]), b = nearestCenter(shown[i + 1]);
+      if (!a || !b) continue;
+      bfs(a, b).forEach((c, k) => {
+        if (k % 6 > 3) return;
+        const x = c % W, y = (c - x) / W;
+        rect(x - 1, y - 1, 2, 2, P.path);
+      });
     }
   }
 
@@ -562,6 +812,13 @@ const PLAN = {
     renderPins();
     renderStops();
     renderDetail();
+    scrollToPin();
+  }
+  // Trên màn hình hẹp bản đồ cuộn ngang được; đưa điểm đang chọn vào giữa khung.
+  function scrollToPin() {
+    const m = $("map"), wrap = m.firstElementChild;
+    if (wrap.scrollWidth <= m.clientWidth || !route[selected]) return;
+    m.scrollTo({ left: wrap.scrollWidth * route[selected][0] / W - m.clientWidth / 2, behavior: "smooth" });
   }
   drawWorld();
   renderPins();
@@ -584,6 +841,7 @@ const PLAN = {
     slides.forEach((s, i) => { s.hidden = i !== n; s.classList.remove("enter-next", "enter-prev"); });
     if (n !== cur) { void slides[n].offsetWidth; slides[n].classList.add(dir); }
     cur = n;
+    if (n === 1) setTimeout(scrollToPin, 60);
     $("nav").hidden = n === 0;
     $("btnPrev").disabled = n <= 1;
     $("btnNext").textContent = n === slides.length - 1 ? "XEM BẢN ĐỒ ↺" : "TIẾP ▶";
