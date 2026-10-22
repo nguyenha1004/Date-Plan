@@ -1,6 +1,6 @@
 # First Date Quest
 
-Thiệp mời hẹn hò phong cách pixel game. Bạn nữ bấm **CÓ** (nút KHÔNG sẽ bỏ chạy) rồi xem bản đồ lộ trình buổi hẹn đã lên sẵn.
+Thiệp mời hẹn hò phong cách pixel game, dạng từng slide. Slide đầu là lời mời: bạn nữ bấm **CÓ** (nút KHÔNG sẽ bỏ chạy) mới sang slide tiếp theo. Sau đó là vé hẹn, mỗi chặng một slide, và slide kết. Chuyển slide bằng nút TIẾP/LẠI, vuốt ngang hoặc phím mũi tên.
 
 ## Sửa lộ trình
 

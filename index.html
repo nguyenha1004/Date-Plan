@@ -26,6 +26,7 @@
   color-scheme: light;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); background: var(--sky); }
 body {
   margin: 0;
@@ -112,51 +113,43 @@ body::after {
 #btnNo { transition: transform .15s steps(3); }
 .toast { text-align: center; font-size: 22px; min-height: 26px; margin: 0; }
 
-/* ticket */
-.ticket { padding: 14px 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 18px; background: var(--butter); }
-.ticket div { display: flex; flex-direction: column; min-width: 0; }
-.ticket dt, .label { font-size: 18px; letter-spacing: 1px; text-transform: uppercase; color: var(--ink); opacity: .7; }
-.ticket dd { margin: 0; font-size: 26px; overflow-wrap: anywhere; }
+/* slides */
+.slide { display: flex; flex-direction: column; gap: 18px; }
+.slide.enter-next { animation: inNext .28s steps(4); }
+.slide.enter-prev { animation: inPrev .28s steps(4); }
+@keyframes inNext { from { transform: translateX(28px); opacity: .2; } }
+@keyframes inPrev { from { transform: translateX(-28px); opacity: .2; } }
 
-/* world map */
-.map { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 22px; position: relative; }
-.map::before {
-  content: ""; position: absolute; left: 34px; top: 30px; bottom: 30px; width: 12px;
-  background: repeating-linear-gradient(180deg, var(--road) 0 12px, var(--paper-2) 12px 20px);
-  box-shadow: -4px 0 0 var(--ink), 4px 0 0 var(--ink);
-}
-.stage { display: grid; grid-template-columns: 80px 1fr; gap: 14px; align-items: start; position: relative; }
-.node {
-  width: 72px; height: 72px; margin: 4px; display: grid; place-items: center; position: relative;
-  background: var(--paper);
-  box-shadow: 0 -4px 0 0 var(--ink), 0 4px 0 0 var(--ink), -4px 0 0 0 var(--ink), 4px 0 0 0 var(--ink), 0 8px 0 0 rgba(45,30,58,.25);
-}
-.node canvas { width: 50px; height: 50px; image-rendering: pixelated; }
-.stage:last-child .node { background: var(--butter); }
-.info { padding: 12px 14px 14px; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.info .top { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; }
-.info .stg { color: var(--rose-dk); letter-spacing: 1px; font-size: 19px; }
-.info .time { font-size: 26px; font-variant-numeric: tabular-nums; background: var(--ink); color: var(--paper); padding: 0 8px; }
-.info h3 { margin: 2px 0 0; font-size: 30px; font-weight: 400; line-height: 1; text-wrap: balance; }
-.info p { margin: 2px 0 0; font-size: 22px; text-wrap: pretty; }
-.map-link { color: var(--rose-dk); font-size: 20px; text-decoration: underline; text-underline-offset: 3px; align-self: flex-start; margin-top: 4px; }
+.big { padding: 26px 20px 22px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; }
+.big canvas { width: 120px; height: 120px; image-rendering: pixelated; }
+.big .stg { color: var(--rose-dk); letter-spacing: 2px; font-size: 22px; }
+.big .time { font-size: 30px; font-variant-numeric: tabular-nums; background: var(--ink); color: var(--paper); padding: 0 12px; }
+.big h2 { margin: 4px 0 0; font-size: clamp(36px, 9vw, 48px); font-weight: 400; line-height: 1; text-wrap: balance; }
+.big p { margin: 0; font-size: 25px; max-width: 30ch; text-wrap: pretty; }
+.map-link { color: var(--rose-dk); font-size: 22px; text-decoration: underline; text-underline-offset: 3px; }
+
+.ticket { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; background: var(--butter); margin: 0; }
+.ticket div { display: flex; flex-direction: column; min-width: 0; }
+.ticket dt { font-size: 18px; letter-spacing: 1px; text-transform: uppercase; opacity: .7; }
+.ticket dd { margin: 0; font-size: 30px; overflow-wrap: anywhere; }
 
 .notes { padding: 14px 18px; display: flex; flex-direction: column; gap: 6px; }
-.notes h2 { margin: 0; font-size: 28px; font-weight: 400; }
-.notes ul { margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.notes h3 { margin: 0; font-size: 26px; font-weight: 400; }
+.notes ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
 .notes li::before { content: "▸ "; color: var(--rose); }
+.end { text-align: center; font-size: 34px; color: var(--rose-dk); margin: 0; }
 
-.end { text-align: center; font-size: 30px; color: var(--rose-dk); margin: 0; }
+.nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.nav .btn { font-size: 22px; padding: 6px 14px; }
+.dots { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; min-width: 0; }
+.dot { width: 12px; height: 12px; background: var(--paper); box-shadow: 0 0 0 3px var(--ink); }
+.dot.on { background: var(--rose); }
+.hint { text-align: center; font-size: 18px; color: var(--muted); margin: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   .cloud, .blink { animation: none; }
   #btnNo { transition: none; }
-}
-@media (max-width: 420px) {
-  .stage { grid-template-columns: 64px 1fr; gap: 10px; }
-  .node { width: 56px; height: 56px; }
-  .node canvas { width: 40px; height: 40px; }
-  .map::before { left: 26px; }
+  .slide.enter-next, .slide.enter-prev { animation: none; }
 }
 </style>
 </head>
@@ -176,7 +169,7 @@ body::after {
   </header>
 
   <!-- Lời mời -->
-  <section class="screen" id="s-intro">
+  <section class="slide" id="s-intro">
     <div class="dialog pix">
       <span class="who" id="whoIntro">ANH</span>
       <div id="introText"></div>
@@ -188,20 +181,15 @@ body::after {
     <p class="toast" id="noMsg" aria-live="polite"></p>
   </section>
 
-  <!-- Lộ trình -->
-  <section class="screen" id="s-map" hidden>
-    <div class="dialog pix">
-      <span class="who" id="whoMap">ANH</span>
-      <p id="mapIntro"></p>
-    </div>
-    <dl class="ticket pix" id="ticket"></dl>
-    <ol class="map" id="map"></ol>
-    <div class="notes pix" id="notesBox">
-      <h2>Ghi chú cho Player 2</h2>
-      <ul id="notes"></ul>
-    </div>
-    <p class="end" id="endLine"></p>
-  </section>
+  <!-- Các slide sau khi bấm CÓ được tạo từ PLAN -->
+  <div id="deck"></div>
+
+  <nav class="nav" id="nav" hidden>
+    <button class="btn ghost" id="btnPrev" type="button">◀ LẠI</button>
+    <div class="dots" id="dots" aria-hidden="true"></div>
+    <button class="btn" id="btnNext" type="button">TIẾP ▶</button>
+  </nav>
+  <p class="hint" id="hint" hidden>Vuốt hoặc bấm TIẾP để đi tiếp</p>
 </main>
 
 <script>
@@ -287,46 +275,89 @@ const PLAN = {
 
   // Intro
   $("hudHeart").appendChild(drawSprite("heart", 2));
-  $("whoIntro").textContent = $("whoMap").textContent = PLAN.from.toUpperCase();
+  $("whoIntro").textContent = PLAN.from.toUpperCase();
   PLAN.intro.forEach((line, i) => {
     const p = el("p", null, line);
     if (i === PLAN.intro.length - 1) { p.append(" "); p.appendChild(el("span", "blink", "▼")); }
     $("introText").appendChild(p);
   });
 
-  // Map
-  $("mapIntro").textContent = "Yay! Đây là bản đồ buổi hẹn của mình. " + (PLAN.to ? PLAN.to[0].toUpperCase() + PLAN.to.slice(1) : "Em") + " chỉ cần đi theo con đường này thôi.";
-  [["Ngày", PLAN.date], ["Đón", PLAN.pickup], ["Trang phục", PLAN.dressCode]].forEach(([k, v]) => {
-    if (!v) return;
-    const d = el("div"); d.append(el("dt", null, k), el("dd", null, v));
-    $("ticket").appendChild(d);
+  // Slides
+  const slides = [$("s-intro")];
+  function addSlide(build) {
+    const s = el("section", "slide"); s.hidden = true;
+    build(s); $("deck").appendChild(s); slides.push(s);
+  }
+  addSlide((s) => {
+    const d = el("div", "dialog pix");
+    d.append(el("span", "who", PLAN.from.toUpperCase()), el("p", null, "Yay! Đây là vé vào buổi hẹn của mình. Bấm TIẾP để xem từng chặng nhé."));
+    const t = el("dl", "ticket pix");
+    [["Ngày", PLAN.date], ["Đón", PLAN.pickup], ["Trang phục", PLAN.dressCode]].forEach(([k, v]) => {
+      if (!v) return;
+      const row = el("div"); row.append(el("dt", null, k), el("dd", null, v)); t.appendChild(row);
+    });
+    s.append(d, t);
   });
-  PLAN.stages.forEach((s, i) => {
-    const li = el("li", "stage");
-    const node = el("div", "node"); node.appendChild(drawSprite(s.sprite, 5));
-    const info = el("div", "info pix");
-    const top = el("div", "top");
-    top.append(el("span", "stg", i === PLAN.stages.length - 1 ? "STAGE CUỐI" : "STAGE " + (i + 1)), el("span", "time", s.time));
-    info.append(top, el("h3", null, s.place));
-    if (s.desc) info.appendChild(el("p", null, s.desc));
-    if (s.map) {
+  PLAN.stages.forEach((st, i) => addSlide((s) => {
+    const b = el("div", "big pix");
+    b.append(
+      el("span", "stg", i === PLAN.stages.length - 1 ? "STAGE CUỐI" : "STAGE " + (i + 1) + " / " + PLAN.stages.length),
+      drawSprite(st.sprite, 12),
+      el("span", "time", st.time),
+      el("h2", null, st.place)
+    );
+    if (st.desc) b.appendChild(el("p", null, st.desc));
+    if (st.map) {
       const a = el("a", "map-link", "Xem trên bản đồ ▸");
-      a.href = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(s.map);
+      a.href = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(st.map);
       a.target = "_blank"; a.rel = "noopener";
-      info.appendChild(a);
+      b.appendChild(a);
     }
-    li.append(node, info);
-    $("map").appendChild(li);
+    s.appendChild(b);
+  }));
+  addSlide((s) => {
+    const b = el("div", "big pix");
+    b.append(drawSprite("heart", 12), el("p", "end", PLAN.ending || "Hẹn gặp em ♥"));
+    s.appendChild(b);
+    if (PLAN.notes && PLAN.notes.length) {
+      const n = el("div", "notes pix");
+      const ul = el("ul");
+      PLAN.notes.forEach((x) => ul.appendChild(el("li", null, x)));
+      n.append(el("h3", null, "Ghi chú cho Player 2"), ul);
+      s.appendChild(n);
+    }
   });
-  if (PLAN.notes && PLAN.notes.length) PLAN.notes.forEach((n) => $("notes").appendChild(el("li", null, n)));
-  else $("notesBox").hidden = true;
-  $("endLine").textContent = PLAN.ending || "";
+  for (let i = 1; i < slides.length; i++) $("dots").appendChild(el("span", "dot"));
 
-  function showMap() {
-    $("s-intro").hidden = true;
-    $("s-map").hidden = false;
+  let cur = 0;
+  function go(n) {
+    if (n < 1 && cur > 0) n = 1; // đã đồng ý thì không quay lại slide mời
+    n = Math.max(0, Math.min(slides.length - 1, n));
+    const dir = n >= cur ? "enter-next" : "enter-prev";
+    slides.forEach((s, i) => { s.hidden = i !== n; s.classList.remove("enter-next", "enter-prev"); });
+    if (n !== cur) { void slides[n].offsetWidth; slides[n].classList.add(dir); }
+    cur = n;
+    $("nav").hidden = $("hint").hidden = n === 0;
+    $("btnPrev").disabled = n <= 1;
+    $("btnNext").textContent = n === slides.length - 1 ? "XEM LẠI ↺" : "TIẾP ▶";
+    [...$("dots").children].forEach((d, i) => d.classList.toggle("on", i === n - 1));
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
+  $("btnNext").addEventListener("click", () => go(cur === slides.length - 1 ? 1 : cur + 1));
+  $("btnPrev").addEventListener("click", () => go(cur - 1));
+  document.addEventListener("keydown", (e) => {
+    if (cur === 0) return;
+    if (e.key === "ArrowRight") go(cur + 1);
+    if (e.key === "ArrowLeft") go(cur - 1);
+  });
+  let tx = null, ty = null;
+  document.addEventListener("touchstart", (e) => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive: true });
+  document.addEventListener("touchend", (e) => {
+    if (cur === 0 || tx === null) return;
+    const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) go(cur + (dx < 0 ? 1 : -1));
+    tx = null;
+  }, { passive: true });
 
   // Nút KHÔNG bỏ chạy
   const NO_LINES = ["Chắc chưa đó?", "Bấm nhầm rồi kìa!", "Nút này hư rồi em ơi", "Thử nút bên kia đi", "Thôi mà…"];
@@ -342,7 +373,7 @@ const PLAN = {
   }
   $("btnNo").addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse") dodge(); });
   $("btnNo").addEventListener("click", (e) => { e.preventDefault(); dodge(); });
-  $("btnYes").addEventListener("click", showMap);
+  $("btnYes").addEventListener("click", () => go(1));
 })();
 </script>
 </body>
