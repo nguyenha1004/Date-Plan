@@ -1,20 +1,20 @@
 # First Date Quest
 
-Thiệp mời hẹn hò phong cách pixel game, dạng từng slide. Slide đầu là lời mời: bạn nữ bấm **CÓ** (nút KHÔNG sẽ bỏ chạy) mới sang slide tiếp theo. Sau đó là vé hẹn, mỗi chặng một slide, và slide kết. Chuyển slide bằng nút TIẾP/LẠI, vuốt ngang hoặc phím mũi tên.
+Thiệp mời hẹn hò phong cách pixel game, dạng slide. Slide 1 là lời mời: bạn nữ bấm **CÓ** (nút KHÔNG sẽ bỏ chạy) mới sang slide 2, một bản đồ lớn TPHCM vẽ lại kiểu pixel, bấm vào từng điểm để xem chi tiết. Slide 3 là lời kết và ghi chú.
 
 ## Sửa lộ trình
 
-Mở `index.html`, tìm khối `const PLAN = { ... }` ở đầu thẻ `<script>`:
+Mở `index.html`, tìm khối `const PLAN = { ... }` ở đầu thẻ `<script>` cuối trang:
 
 - `date`, `pickup`, `dressCode`: thông tin trên vé.
-- `stages`: từng chặng gồm `time`, `sprite` (hình pixel), `place`, `desc`, `map` (chữ để tìm trên Google Maps, để `""` nếu không cần link).
+- `stages`: từng điểm gồm `time`, `sprite` (hình pixel), `place`, `desc`, `lat`, `lng`.
+  Lấy tọa độ: trên Google Maps nhấn giữ (hoặc chuột phải) vào điểm, bấm dòng số `10.xxx, 106.xxx` để sao chép.
+- `secretStops`: số điểm "??? sắp mở" hiện trong danh sách.
 - `notes`, `ending`: ghi chú và câu kết.
 
-Danh sách sprite có sẵn được ghi ngay trên khối `PLAN`.
+Bản đồ nền lấy từ OpenStreetMap qua CARTO, được thu nhỏ rồi phóng to không làm mượt và đổi sang bảng màu của game để ra kiểu pixel.
 
 ## Deploy
 
 Push lên nhánh `main` là GitHub Actions tự deploy lên GitHub Pages:
 https://nguyenha1004.github.io/Date-Plan/
-
-Lần đầu, nếu workflow báo lỗi Pages chưa bật: vào **Settings → Pages → Source**, chọn **GitHub Actions**, rồi chạy lại workflow.

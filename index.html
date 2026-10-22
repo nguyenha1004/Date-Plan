@@ -8,18 +8,17 @@
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&display=swap&subset=vietnamese">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
-/* Layout: one handheld "game screen" column on a pixel sky; the plan is a world map of stages joined by a pixel road. */
+/* Layout: a handheld "game screen" on a pixel sky. Slide 1 invites, slide 2 is a big pixel-art map of Saigon with tappable stops, slide 3 closes. */
 :root {
   --sky: #bfe3ff;
   --paper: #fff6ea;
-  --paper-2: #f3e6d3;
   --ink: #2d1e3a;
   --rose: #ff5d8f;
   --rose-dk: #c93a6a;
   --butter: #ffd84d;
   --mint: #7ee0b5;
-  --road: #c9a27a;
   --muted: #6d5a7a;
   --font: "VT323", "Courier New", ui-monospace, monospace;
   --px: 4px;
@@ -27,7 +26,7 @@
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); background: var(--sky); }
+html { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); background: var(--sky); overflow-x: hidden; }
 body {
   margin: 0;
   min-height: 100vh;
@@ -62,7 +61,8 @@ body::after {
 .cloud:nth-child(3) { top: 62%; left: -80px; animation-duration: 80s; animation-delay: -20s; }
 @keyframes drift { to { left: calc(100% + 80px); } }
 
-.game { position: relative; z-index: 1; max-width: 620px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; padding-bottom: 60px; }
+.game { position: relative; z-index: 1; max-width: 880px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; padding-bottom: 60px; }
+.narrow { width: 100%; max-width: 620px; margin-inline: auto; }
 
 .pix {
   background: var(--paper);
@@ -89,8 +89,6 @@ body::after {
 }
 .title p { margin: 6px 0 0; font-size: 22px; letter-spacing: 2px; text-transform: uppercase; }
 
-.screen { display: flex; flex-direction: column; gap: 18px; }
-
 .dialog { padding: 18px 18px 16px; position: relative; }
 .who {
   position: absolute; top: -18px; left: 12px; background: var(--rose); color: var(--paper);
@@ -108,7 +106,8 @@ body::after {
 }
 .btn:active { transform: translateY(2px); }
 .btn.ghost { background: var(--paper); color: var(--ink); box-shadow: 0 -4px 0 0 var(--ink), 0 4px 0 0 var(--ink), -4px 0 0 0 var(--ink), 4px 0 0 0 var(--ink), inset 0 -4px 0 0 #e8dccb; }
-.btn:focus-visible, .map-link:focus-visible { outline: 3px dashed var(--rose); outline-offset: 5px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn:focus-visible, .stop:focus-visible, .map-link:focus-visible { outline: 3px dashed var(--rose); outline-offset: 5px; }
 .no-zone { position: relative; min-height: 70px; }
 #btnNo { transition: transform .15s steps(3); }
 .toast { text-align: center; font-size: 22px; min-height: 26px; margin: 0; }
@@ -120,34 +119,88 @@ body::after {
 @keyframes inNext { from { transform: translateX(28px); opacity: .2; } }
 @keyframes inPrev { from { transform: translateX(-28px); opacity: .2; } }
 
+/* ticket strip */
+.ticket { padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 6px 24px; background: var(--butter); }
+.ticket div { display: flex; flex-direction: column; min-width: 0; }
+.ticket dt { font-size: 17px; letter-spacing: 1px; text-transform: uppercase; opacity: .7; }
+.ticket dd { margin: 0; font-size: 24px; overflow-wrap: anywhere; }
+
+/* map */
+.mapframe { padding: 0; position: relative; }
+#map {
+  height: clamp(340px, 62vh, 620px); width: 100%;
+  background: #7cc4f2; font-family: var(--font);
+}
+#map .leaflet-tile { image-rendering: pixelated; }
+.leaflet-container a { color: var(--rose-dk); }
+.leaflet-control-attribution { font-family: var(--font); font-size: 14px; background: rgba(255, 246, 234, .9) !important; }
+.leaflet-bar { border: 0 !important; box-shadow: 0 0 0 3px var(--ink) !important; border-radius: 0 !important; }
+.leaflet-bar a { border-radius: 0 !important; font-family: var(--font); font-size: 24px; color: var(--ink) !important; background: var(--paper); border-bottom: 3px solid var(--ink) !important; }
+.leaflet-bar a:last-child { border-bottom: 0 !important; }
+.map-tag {
+  position: absolute; z-index: 500; top: 10px; right: 10px; pointer-events: none;
+  background: var(--ink); color: var(--butter); padding: 2px 10px; font-size: 20px; letter-spacing: 1px;
+}
+
+.pin { position: relative; width: 56px; height: 66px; cursor: pointer; }
+.pin .box {
+  position: absolute; left: 4px; top: 4px; width: 48px; height: 48px; display: grid; place-items: center;
+  background: var(--paper);
+  box-shadow: 0 -4px 0 0 var(--ink), 0 4px 0 0 var(--ink), -4px 0 0 0 var(--ink), 4px 0 0 0 var(--ink);
+}
+.pin .box img { width: 36px; height: 36px; image-rendering: pixelated; }
+.pin .tip { position: absolute; left: 22px; top: 56px; width: 12px; height: 8px; background: var(--ink); }
+.pin .num {
+  position: absolute; right: -6px; top: -8px; min-width: 22px; height: 22px; padding: 0 4px;
+  background: var(--rose); color: var(--paper); font-size: 20px; line-height: 22px; text-align: center;
+  box-shadow: 0 0 0 3px var(--ink);
+}
+.pin.on .box { background: var(--butter); }
+.pin.on { animation: hop .6s steps(3) infinite alternate; }
+@keyframes hop { to { transform: translateY(-6px); } }
+
+/* stop list */
+.stops { display: flex; gap: 12px; flex-wrap: wrap; }
+.stop {
+  appearance: none; border: 0; cursor: pointer; font: inherit; color: inherit; font-size: 22px;
+  padding: 6px 12px; display: inline-flex; align-items: center; gap: 8px;
+}
+.stop b { font-weight: 400; background: var(--rose); color: var(--paper); padding: 0 6px; }
+.stop[aria-pressed="true"] { background: var(--butter); }
+.stop.secret { cursor: default; color: var(--muted); background: transparent; box-shadow: none; outline: 3px dashed var(--muted); outline-offset: -3px; margin: 4px; }
+
+/* detail card */
+.detail { padding: 14px 16px; display: grid; grid-template-columns: 84px 1fr; gap: 14px; align-items: start; }
+.detail .icon { width: 84px; height: 84px; image-rendering: pixelated; }
+.detail .body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.detail .top { display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+.detail .stg { color: var(--rose-dk); letter-spacing: 1px; font-size: 19px; }
+.detail .time { font-size: 24px; font-variant-numeric: tabular-nums; background: var(--ink); color: var(--paper); padding: 0 8px; }
+.detail h2 { margin: 0; font-size: 32px; font-weight: 400; line-height: 1; text-wrap: balance; }
+.detail p { margin: 0; font-size: 22px; text-wrap: pretty; }
+.map-link { color: var(--rose-dk); font-size: 21px; text-decoration: underline; text-underline-offset: 3px; align-self: flex-start; }
+
+/* ending */
 .big { padding: 26px 20px 22px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; }
 .big canvas { width: 120px; height: 120px; image-rendering: pixelated; }
-.big .stg { color: var(--rose-dk); letter-spacing: 2px; font-size: 22px; }
-.big .time { font-size: 30px; font-variant-numeric: tabular-nums; background: var(--ink); color: var(--paper); padding: 0 12px; }
-.big h2 { margin: 4px 0 0; font-size: clamp(36px, 9vw, 48px); font-weight: 400; line-height: 1; text-wrap: balance; }
-.big p { margin: 0; font-size: 25px; max-width: 30ch; text-wrap: pretty; }
-.map-link { color: var(--rose-dk); font-size: 22px; text-decoration: underline; text-underline-offset: 3px; }
-
-.ticket { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; background: var(--butter); margin: 0; }
-.ticket div { display: flex; flex-direction: column; min-width: 0; }
-.ticket dt { font-size: 18px; letter-spacing: 1px; text-transform: uppercase; opacity: .7; }
-.ticket dd { margin: 0; font-size: 30px; overflow-wrap: anywhere; }
-
+.end { font-size: 34px; color: var(--rose-dk); margin: 0; }
 .notes { padding: 14px 18px; display: flex; flex-direction: column; gap: 6px; }
 .notes h3 { margin: 0; font-size: 26px; font-weight: 400; }
 .notes ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
 .notes li::before { content: "▸ "; color: var(--rose); }
-.end { text-align: center; font-size: 34px; color: var(--rose-dk); margin: 0; }
 
 .nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .nav .btn { font-size: 22px; padding: 6px 14px; }
-.dots { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; min-width: 0; }
+.dots { display: flex; gap: 8px; justify-content: center; }
 .dot { width: 12px; height: 12px; background: var(--paper); box-shadow: 0 0 0 3px var(--ink); }
 .dot.on { background: var(--rose); }
-.hint { text-align: center; font-size: 18px; color: var(--muted); margin: 0; }
 
+@media (max-width: 480px) {
+  .detail { grid-template-columns: 60px 1fr; }
+  .detail .icon { width: 60px; height: 60px; }
+}
 @media (prefers-reduced-motion: reduce) {
-  .cloud, .blink { animation: none; }
+  .cloud, .blink, .pin.on { animation: none; }
   #btnNo { transition: none; }
   .slide.enter-next, .slide.enter-prev { animation: none; }
 }
@@ -158,7 +211,7 @@ body::after {
 <div class="clouds" aria-hidden="true"><div class="cloud"></div><div class="cloud"></div><div class="cloud"></div></div>
 
 <main class="game">
-  <div class="hud">
+  <div class="hud narrow">
     <span class="lv">LV.1 · FIRST DATE</span>
     <span id="hudHeart"></span>
   </div>
@@ -168,8 +221,8 @@ body::after {
     <p>Player 2 đã được mời</p>
   </header>
 
-  <!-- Lời mời -->
-  <section class="slide" id="s-intro">
+  <!-- Slide 1: lời mời -->
+  <section class="slide narrow" id="s-intro">
     <div class="dialog pix">
       <span class="who" id="whoIntro">ANH</span>
       <div id="introText"></div>
@@ -181,45 +234,76 @@ body::after {
     <p class="toast" id="noMsg" aria-live="polite"></p>
   </section>
 
-  <!-- Các slide sau khi bấm CÓ được tạo từ PLAN -->
-  <div id="deck"></div>
+  <!-- Slide 2: bản đồ -->
+  <section class="slide" id="s-map" hidden>
+    <div class="dialog pix narrow">
+      <span class="who" id="whoMap">ANH</span>
+      <p>Đây là bản đồ buổi hẹn của mình ở Sài Gòn. Em bấm vào từng điểm để xem nhé.</p>
+    </div>
+    <dl class="ticket pix" id="ticket"></dl>
+    <div class="mapframe pix">
+      <span class="map-tag">WORLD 1 · SÀI GÒN</span>
+      <div id="map" role="application" aria-label="Bản đồ các điểm hẹn"></div>
+    </div>
+    <div class="stops" id="stops"></div>
+    <div class="detail pix" id="detail" aria-live="polite"></div>
+  </section>
 
-  <nav class="nav" id="nav" hidden>
+  <!-- Slide 3: kết -->
+  <section class="slide narrow" id="s-end" hidden>
+    <div class="big pix">
+      <span id="endHeart"></span>
+      <p class="end" id="endLine"></p>
+    </div>
+    <div class="notes pix" id="notesBox">
+      <h3>Ghi chú cho Player 2</h3>
+      <ul id="notes"></ul>
+    </div>
+  </section>
+
+  <nav class="nav narrow" id="nav" hidden>
     <button class="btn ghost" id="btnPrev" type="button">◀ LẠI</button>
-    <div class="dots" id="dots" aria-hidden="true"></div>
+    <div class="dots" id="dots" aria-hidden="true"><span class="dot"></span><span class="dot"></span></div>
     <button class="btn" id="btnNext" type="button">TIẾP ▶</button>
   </nav>
-  <p class="hint" id="hint" hidden>Vuốt hoặc bấm TIẾP để đi tiếp</p>
 </main>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 /* =========================================================
    SỬA LỘ TRÌNH Ở ĐÂY
+   - Mỗi điểm cần lat/lng. Lấy tọa độ: mở Google Maps, nhấn giữ (hoặc chuột phải)
+     vào điểm muốn chọn, bấm vào dòng số "10.xxx, 106.xxx" để sao chép.
    - sprite: coffee, popcorn, tree, museum, vase, gamepad, city, lantern,
              pho, hotpot, grill, sushi, pizza, snack, boba, icecream, cake, che,
              scooter, home, heart
-   - map: chữ dùng để tìm trên Google Maps (để "" nếu không muốn hiện link)
+   - time: để "" nếu chưa chốt giờ.
+   - secretStops: số điểm "???" hiện trong danh sách, cho vui khi chưa công bố.
    ========================================================= */
 const PLAN = {
   from: "ANH",
-  to: "em",
   intro: [
     "Chào em! Anh muốn rủ em đi một buổi hẹn đầu tiên.",
-    "Anh đã lên sẵn lộ trình rồi, em chỉ cần mang theo nụ cười thôi.",
+    "Anh đã lên sẵn lộ trình trên bản đồ rồi, em chỉ cần mang theo nụ cười thôi.",
     "Em có đồng ý đi với anh không?"
   ],
-  date: "Thứ Bảy, 25/10",
-  pickup: "16:30 · Anh qua đón em",
+  date: "Anh báo em sau",
+  pickup: "Khu vực AEON Mall Bình Tân",
   dressCode: "Thoải mái, đi giày êm",
   stages: [
-    { time: "16:30", sprite: "scooter", place: "Anh đón em", desc: "Anh tới trước cửa nhà em, đúng giờ.", map: "" },
-    { time: "17:00", sprite: "vase", place: "Workshop làm gốm", desc: "Mỗi người nặn một món, đổi quà cho nhau.", map: "workshop làm gốm" },
-    { time: "19:00", sprite: "grill", place: "Ăn tối đồ nướng", desc: "Anh nướng, em ăn.", map: "quán nướng" },
-    { time: "20:30", sprite: "icecream", place: "Kem + dạo phố đi bộ", desc: "Vừa ăn kem vừa đi dạo cho tiêu bữa tối.", map: "phố đi bộ" },
-    { time: "21:30", sprite: "home", place: "Đưa em về", desc: "Về tới nhà an toàn là hoàn thành quest.", map: "" }
+    {
+      time: "",
+      sprite: "scooter",
+      place: "Điểm đón: AEON Mall Bình Tân",
+      desc: "Anh đón em ở khu vực quanh AEON Mall Bình Tân. Tới nơi anh nhắn em.",
+      lat: 10.7427, lng: 106.6119
+    }
+    // Thêm điểm tiếp theo, ví dụ:
+    // { time: "18:00", sprite: "coffee", place: "Tên quán", desc: "Làm gì ở đó", lat: 10.77, lng: 106.70 },
   ],
+  secretStops: 2,
   notes: [
-    "Nếu mưa, workshop gốm vẫn ở trong nhà nên không sao.",
+    "Các điểm tiếp theo sẽ hiện dần trên bản đồ.",
     "Em không ăn được món gì thì nhắn anh trước nha."
   ],
   ending: "Hẹn gặp em nhé ♥"
@@ -273,85 +357,188 @@ const PLAN = {
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 
-  // Intro
+  // ---------- Slide 1 ----------
   $("hudHeart").appendChild(drawSprite("heart", 2));
-  $("whoIntro").textContent = PLAN.from.toUpperCase();
+  $("whoIntro").textContent = $("whoMap").textContent = PLAN.from.toUpperCase();
   PLAN.intro.forEach((line, i) => {
     const p = el("p", null, line);
     if (i === PLAN.intro.length - 1) { p.append(" "); p.appendChild(el("span", "blink", "▼")); }
     $("introText").appendChild(p);
   });
 
-  // Slides
-  const slides = [$("s-intro")];
-  function addSlide(build) {
-    const s = el("section", "slide"); s.hidden = true;
-    build(s); $("deck").appendChild(s); slides.push(s);
-  }
-  addSlide((s) => {
-    const d = el("div", "dialog pix");
-    d.append(el("span", "who", PLAN.from.toUpperCase()), el("p", null, "Yay! Đây là vé vào buổi hẹn của mình. Bấm TIẾP để xem từng chặng nhé."));
-    const t = el("dl", "ticket pix");
-    [["Ngày", PLAN.date], ["Đón", PLAN.pickup], ["Trang phục", PLAN.dressCode]].forEach(([k, v]) => {
-      if (!v) return;
-      const row = el("div"); row.append(el("dt", null, k), el("dd", null, v)); t.appendChild(row);
-    });
-    s.append(d, t);
+  // ---------- Slide 2: ticket + map ----------
+  [["Ngày", PLAN.date], ["Điểm đón", PLAN.pickup], ["Trang phục", PLAN.dressCode]].forEach(([k, v]) => {
+    if (!v) return;
+    const row = el("div"); row.append(el("dt", null, k), el("dd", null, v)); $("ticket").appendChild(row);
   });
-  PLAN.stages.forEach((st, i) => addSlide((s) => {
-    const b = el("div", "big pix");
-    b.append(
-      el("span", "stg", i === PLAN.stages.length - 1 ? "STAGE CUỐI" : "STAGE " + (i + 1) + " / " + PLAN.stages.length),
-      drawSprite(st.sprite, 12),
-      el("span", "time", st.time),
-      el("h2", null, st.place)
-    );
-    if (st.desc) b.appendChild(el("p", null, st.desc));
-    if (st.map) {
-      const a = el("a", "map-link", "Xem trên bản đồ ▸");
-      a.href = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(st.map);
-      a.target = "_blank"; a.rel = "noopener";
-      b.appendChild(a);
-    }
-    s.appendChild(b);
-  }));
-  addSlide((s) => {
-    const b = el("div", "big pix");
-    b.append(drawSprite("heart", 12), el("p", "end", PLAN.ending || "Hẹn gặp em ♥"));
-    s.appendChild(b);
-    if (PLAN.notes && PLAN.notes.length) {
-      const n = el("div", "notes pix");
-      const ul = el("ul");
-      PLAN.notes.forEach((x) => ul.appendChild(el("li", null, x)));
-      n.append(el("h3", null, "Ghi chú cho Player 2"), ul);
-      s.appendChild(n);
-    }
-  });
-  for (let i = 1; i < slides.length; i++) $("dots").appendChild(el("span", "dot"));
 
+  const stages = PLAN.stages.filter((s) => typeof s.lat === "number" && typeof s.lng === "number");
+  const stageLabel = (i) => (i === 0 ? "START" : "STAGE " + (i + 1));
+  let map = null, pins = [], selected = 0;
+
+  // Kiểu pixel: thu nhỏ từng ô bản đồ rồi phóng to không làm mượt, và đổi màu về bảng màu của game.
+  const PIXEL = 4;
+  const OUT = {
+    water: [124, 196, 242], park: [143, 220, 159], road: [255, 250, 240],
+    major: [255, 216, 77], land: [246, 231, 200], built: [228, 208, 172]
+  };
+  function classify(r, g, b) {
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    if (b > r + 12 && b >= g - 4) return OUT.water;
+    if (g > r + 6 && g > b + 4) return OUT.park;
+    if (r > 235 && g > 200 && b < 200 && r - b > 45) return OUT.major;
+    if (lum > 247) return OUT.road;
+    if (lum < 226) return OUT.built;
+    return OUT.land;
+  }
+  const PixelTiles = window.L && L.GridLayer.extend({
+    createTile(coords, done) {
+      const tile = document.createElement("canvas");
+      const size = this.getTileSize();
+      tile.width = size.x; tile.height = size.y;
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const n = size.x / PIXEL;
+        const small = document.createElement("canvas");
+        small.width = n; small.height = n;
+        const sctx = small.getContext("2d");
+        sctx.drawImage(img, 0, 0, n, n);
+        try {
+          const data = sctx.getImageData(0, 0, n, n);
+          const d = data.data;
+          for (let i = 0; i < d.length; i += 4) {
+            const c = classify(d[i], d[i + 1], d[i + 2]);
+            d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2];
+          }
+          sctx.putImageData(data, 0, 0);
+        } catch (_) { /* không đọc được pixel thì vẫn giữ kiểu ô vuông */ }
+        const ctx = tile.getContext("2d");
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(small, 0, 0, size.x, size.y);
+        done(null, tile);
+      };
+      img.onerror = () => done(new Error("tile"), tile);
+      const s = "abcd"[(coords.x + coords.y) % 4];
+      img.src = `https://${s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/${coords.z}/${coords.x}/${coords.y}.png`;
+      return tile;
+    }
+  });
+
+  function pinIcon(st, i) {
+    const html = `<div class="pin${i === selected ? " on" : ""}"><div class="box"><img alt="" src="${drawSprite(st.sprite, 6).toDataURL()}"></div><div class="tip"></div><span class="num">${i + 1}</span></div>`;
+    return L.divIcon({ html, className: "", iconSize: [56, 66], iconAnchor: [28, 66] });
+  }
+
+  function initMap() {
+    if (map || !window.L) return;
+    map = L.map("map", { zoomControl: true, attributionControl: true, minZoom: 11, maxZoom: 17 });
+    new PixelTiles({
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>'
+    }).addTo(map);
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}.png", {
+      subdomains: "abcd", opacity: 0.85, pane: "overlayPane"
+    }).addTo(map);
+
+    const pts = stages.map((s) => [s.lat, s.lng]);
+    if (pts.length > 1) {
+      L.polyline(pts, { color: "#2d1e3a", weight: 10, opacity: 1 }).addTo(map);
+      L.polyline(pts, { color: "#ff5d8f", weight: 5, dashArray: "8 8", opacity: 1 }).addTo(map);
+    }
+    pins = stages.map((st, i) =>
+      L.marker([st.lat, st.lng], { icon: pinIcon(st, i), title: st.place, keyboard: true })
+        .on("click", () => select(i, false))
+        .addTo(map)
+    );
+    if (pts.length > 1) map.fitBounds(pts, { padding: [60, 60] });
+    else if (pts.length === 1) map.setView(pts[0], 14);
+    else map.setView([10.7769, 106.7009], 12);
+  }
+
+  function renderStops() {
+    const box = $("stops");
+    box.textContent = "";
+    stages.forEach((st, i) => {
+      const b = el("button", "stop pix");
+      b.type = "button"; b.id = "stop-" + i;
+      b.setAttribute("aria-pressed", String(i === selected));
+      b.append(el("b", null, String(i + 1)), document.createTextNode(st.time ? st.time + " · " + shortName(st.place) : shortName(st.place)));
+      b.addEventListener("click", () => select(i, true));
+      box.appendChild(b);
+    });
+    for (let k = 0; k < (PLAN.secretStops || 0); k++) {
+      const s = el("span", "stop secret");
+      s.append(el("b", null, String(stages.length + k + 1)), document.createTextNode("??? sắp mở"));
+      box.appendChild(s);
+    }
+  }
+  const shortName = (s) => s.replace(/^Điểm đón:\s*/, "");
+
+  function renderDetail() {
+    const box = $("detail");
+    box.textContent = "";
+    const st = stages[selected];
+    if (!st) { box.appendChild(el("p", null, "Các điểm hẹn sẽ sớm xuất hiện trên bản đồ.")); return; }
+    const icon = drawSprite(st.sprite, 10); icon.className = "icon";
+    const body = el("div", "body");
+    const top = el("div", "top");
+    top.appendChild(el("span", "stg", stageLabel(selected)));
+    if (st.time) top.appendChild(el("span", "time", st.time));
+    body.append(top, el("h2", null, st.place));
+    if (st.desc) body.appendChild(el("p", null, st.desc));
+    const a = el("a", "map-link", "Mở trong Google Maps ▸");
+    a.href = `https://www.google.com/maps/search/?api=1&query=${st.lat},${st.lng}`;
+    a.target = "_blank"; a.rel = "noopener";
+    body.appendChild(a);
+    box.append(icon, body);
+  }
+
+  function select(i, pan) {
+    selected = i;
+    pins.forEach((m, j) => m.setIcon(pinIcon(stages[j], j)));
+    renderStops();
+    renderDetail();
+    if (pan && map && stages[i]) map.flyTo([stages[i].lat, stages[i].lng], Math.max(map.getZoom(), 15), { duration: 0.6 });
+  }
+  renderStops();
+  renderDetail();
+
+  // ---------- Slide 3 ----------
+  $("endHeart").appendChild(drawSprite("heart", 12));
+  $("endLine").textContent = PLAN.ending || "Hẹn gặp em nhé ♥";
+  if (PLAN.notes && PLAN.notes.length) PLAN.notes.forEach((n) => $("notes").appendChild(el("li", null, n)));
+  else $("notesBox").hidden = true;
+
+  // ---------- Điều hướng slide ----------
+  const slides = [$("s-intro"), $("s-map"), $("s-end")];
   let cur = 0;
   function go(n) {
-    if (n < 1 && cur > 0) n = 1; // đã đồng ý thì không quay lại slide mời
+    if (cur > 0 && n < 1) n = 1; // đã đồng ý thì không quay lại slide mời
     n = Math.max(0, Math.min(slides.length - 1, n));
     const dir = n >= cur ? "enter-next" : "enter-prev";
     slides.forEach((s, i) => { s.hidden = i !== n; s.classList.remove("enter-next", "enter-prev"); });
     if (n !== cur) { void slides[n].offsetWidth; slides[n].classList.add(dir); }
     cur = n;
-    $("nav").hidden = $("hint").hidden = n === 0;
+    $("nav").hidden = n === 0;
     $("btnPrev").disabled = n <= 1;
-    $("btnNext").textContent = n === slides.length - 1 ? "XEM LẠI ↺" : "TIẾP ▶";
+    $("btnNext").textContent = n === slides.length - 1 ? "XEM BẢN ĐỒ ↺" : "TIẾP ▶";
     [...$("dots").children].forEach((d, i) => d.classList.toggle("on", i === n - 1));
+    if (n === 1) { initMap(); setTimeout(() => map && map.invalidateSize(), 300); }
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
   $("btnNext").addEventListener("click", () => go(cur === slides.length - 1 ? 1 : cur + 1));
   $("btnPrev").addEventListener("click", () => go(cur - 1));
+  const inMap = (t) => t && t.closest && t.closest("#map");
   document.addEventListener("keydown", (e) => {
-    if (cur === 0) return;
+    if (cur === 0 || inMap(e.target)) return;
     if (e.key === "ArrowRight") go(cur + 1);
     if (e.key === "ArrowLeft") go(cur - 1);
   });
   let tx = null, ty = null;
-  document.addEventListener("touchstart", (e) => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive: true });
+  document.addEventListener("touchstart", (e) => {
+    if (inMap(e.target)) { tx = null; return; }
+    tx = e.touches[0].clientX; ty = e.touches[0].clientY;
+  }, { passive: true });
   document.addEventListener("touchend", (e) => {
     if (cur === 0 || tx === null) return;
     const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty;
@@ -359,7 +546,7 @@ const PLAN = {
     tx = null;
   }, { passive: true });
 
-  // Nút KHÔNG bỏ chạy
+  // ---------- Nút KHÔNG bỏ chạy ----------
   const NO_LINES = ["Chắc chưa đó?", "Bấm nhầm rồi kìa!", "Nút này hư rồi em ơi", "Thử nút bên kia đi", "Thôi mà…"];
   let noCount = 0;
   function dodge() {
