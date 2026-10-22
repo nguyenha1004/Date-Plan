@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>First Date Quest</title>
+<meta name="theme-color" content="#bfe3ff">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&display=swap&subset=vietnamese">
+<style>
+/* Layout: one handheld "game screen" column on a pixel sky; the plan is a world map of stages joined by a pixel road. */
+:root {
+  --sky: #bfe3ff;
+  --paper: #fff6ea;
+  --paper-2: #f3e6d3;
+  --ink: #2d1e3a;
+  --rose: #ff5d8f;
+  --rose-dk: #c93a6a;
+  --butter: #ffd84d;
+  --mint: #7ee0b5;
+  --road: #c9a27a;
+  --muted: #6d5a7a;
+  --font: "VT323", "Courier New", ui-monospace, monospace;
+  --px: 4px;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); background: var(--sky); }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--sky);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 22px;
+  line-height: 1.15;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+  overflow-x: hidden;
+}
+body::after {
+  content: ""; position: fixed; inset: auto 0 0 0; height: 48px; z-index: 0;
+  background:
+    repeating-linear-gradient(90deg, var(--mint) 0 16px, #6bd0a4 16px 32px) top / 100% 12px no-repeat,
+    #b98a5e;
+  border-top: var(--px) solid var(--ink);
+}
+.clouds { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+.cloud {
+  position: absolute; width: 8px; height: 8px;
+  box-shadow:
+    16px 0 #fff, 24px 0 #fff, 32px 0 #fff,
+    8px 8px #fff, 16px 8px #fff, 24px 8px #fff, 32px 8px #fff, 40px 8px #fff, 48px 8px #fff,
+    0 16px #fff, 8px 16px #fff, 16px 16px #fff, 24px 16px #fff, 32px 16px #fff, 40px 16px #fff, 48px 16px #fff, 56px 16px #fff;
+  animation: drift 70s linear infinite; opacity: .9;
+}
+.cloud:nth-child(1) { top: 8%; left: -80px; }
+.cloud:nth-child(2) { top: 30%; left: -80px; animation-duration: 95s; animation-delay: -40s; }
+.cloud:nth-child(3) { top: 62%; left: -80px; animation-duration: 80s; animation-delay: -20s; }
+@keyframes drift { to { left: calc(100% + 80px); } }
+
+.game { position: relative; z-index: 1; max-width: 620px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; padding-bottom: 60px; }
+
+.pix {
+  background: var(--paper);
+  box-shadow:
+    0 calc(-1 * var(--px)) 0 0 var(--ink), 0 var(--px) 0 0 var(--ink),
+    calc(-1 * var(--px)) 0 0 0 var(--ink), var(--px) 0 0 0 var(--ink),
+    0 calc(var(--px) * 2) 0 0 rgba(45,30,58,.25);
+  margin: var(--px);
+}
+
+.hud {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 8px 14px; background: var(--ink); color: var(--paper);
+  box-shadow: 0 calc(var(--px) * 2) 0 0 rgba(45,30,58,.25);
+}
+.hud .lv { color: var(--butter); letter-spacing: 1px; }
+.hud canvas { width: 20px; height: 20px; image-rendering: pixelated; vertical-align: middle; }
+
+.title { text-align: center; }
+.title h1 {
+  margin: 0; font-size: clamp(44px, 11vw, 72px); font-weight: 400; line-height: .9; letter-spacing: 2px;
+  color: var(--rose); text-wrap: balance;
+  text-shadow: 3px 3px 0 var(--ink), -1px -1px 0 var(--ink), 1px -1px 0 var(--ink), -1px 1px 0 var(--ink);
+}
+.title p { margin: 6px 0 0; font-size: 22px; letter-spacing: 2px; text-transform: uppercase; }
+
+.screen { display: flex; flex-direction: column; gap: 18px; }
+
+.dialog { padding: 18px 18px 16px; position: relative; }
+.who {
+  position: absolute; top: -18px; left: 12px; background: var(--rose); color: var(--paper);
+  padding: 2px 10px; font-size: 20px; letter-spacing: 1px; box-shadow: 0 0 0 3px var(--ink);
+}
+.dialog p { margin: 6px 0 0; font-size: 25px; text-wrap: pretty; }
+.blink { animation: blink 1s steps(2) infinite; color: var(--rose); }
+@keyframes blink { 50% { opacity: 0; } }
+
+.row { display: flex; gap: 14px; justify-content: center; align-items: center; flex-wrap: wrap; }
+.btn {
+  appearance: none; border: 0; cursor: pointer; font: inherit; font-size: 26px; letter-spacing: 1px;
+  padding: 8px 22px; color: var(--paper); background: var(--rose); margin: 4px;
+  box-shadow: 0 -4px 0 0 var(--ink), 0 4px 0 0 var(--ink), -4px 0 0 0 var(--ink), 4px 0 0 0 var(--ink), inset 0 -4px 0 0 var(--rose-dk);
+}
+.btn:active { transform: translateY(2px); }
+.btn.ghost { background: var(--paper); color: var(--ink); box-shadow: 0 -4px 0 0 var(--ink), 0 4px 0 0 var(--ink), -4px 0 0 0 var(--ink), 4px 0 0 0 var(--ink), inset 0 -4px 0 0 #e8dccb; }
+.btn:focus-visible, .map-link:focus-visible { outline: 3px dashed var(--rose); outline-offset: 5px; }
+.no-zone { position: relative; min-height: 70px; }
+#btnNo { transition: transform .15s steps(3); }
+.toast { text-align: center; font-size: 22px; min-height: 26px; margin: 0; }
+
+/* ticket */
+.ticket { padding: 14px 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 18px; background: var(--butter); }
+.ticket div { display: flex; flex-direction: column; min-width: 0; }
+.ticket dt, .label { font-size: 18px; letter-spacing: 1px; text-transform: uppercase; color: var(--ink); opacity: .7; }
+.ticket dd { margin: 0; font-size: 26px; overflow-wrap: anywhere; }
+
+/* world map */
+.map { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 22px; position: relative; }
+.map::before {
+  content: ""; position: absolute; left: 34px; top: 30px; bottom: 30px; width: 12px;
+  background: repeating-linear-gradient(180deg, var(--road) 0 12px, var(--paper-2) 12px 20px);
+  box-shadow: -4px 0 0 var(--ink), 4px 0 0 var(--ink);
+}
+.stage { display: grid; grid-template-columns: 80px 1fr; gap: 14px; align-items: start; position: relative; }
+.node {
+  width: 72px; height: 72px; margin: 4px; display: grid; place-items: center; position: relative;
+  background: var(--paper);
+  box-shadow: 0 -4px 0 0 var(--ink), 0 4px 0 0 var(--ink), -4px 0 0 0 var(--ink), 4px 0 0 0 var(--ink), 0 8px 0 0 rgba(45,30,58,.25);
+}
+.node canvas { width: 50px; height: 50px; image-rendering: pixelated; }
+.stage:last-child .node { background: var(--butter); }
+.info { padding: 12px 14px 14px; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.info .top { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+.info .stg { color: var(--rose-dk); letter-spacing: 1px; font-size: 19px; }
+.info .time { font-size: 26px; font-variant-numeric: tabular-nums; background: var(--ink); color: var(--paper); padding: 0 8px; }
+.info h3 { margin: 2px 0 0; font-size: 30px; font-weight: 400; line-height: 1; text-wrap: balance; }
+.info p { margin: 2px 0 0; font-size: 22px; text-wrap: pretty; }
+.map-link { color: var(--rose-dk); font-size: 20px; text-decoration: underline; text-underline-offset: 3px; align-self: flex-start; margin-top: 4px; }
+
+.notes { padding: 14px 18px; display: flex; flex-direction: column; gap: 6px; }
+.notes h2 { margin: 0; font-size: 28px; font-weight: 400; }
+.notes ul { margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.notes li::before { content: "▸ "; color: var(--rose); }
+
+.end { text-align: center; font-size: 30px; color: var(--rose-dk); margin: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cloud, .blink { animation: none; }
+  #btnNo { transition: none; }
+}
+@media (max-width: 420px) {
+  .stage { grid-template-columns: 64px 1fr; gap: 10px; }
+  .node { width: 56px; height: 56px; }
+  .node canvas { width: 40px; height: 40px; }
+  .map::before { left: 26px; }
+}
+</style>
+</head>
+<body>
+
+<div class="clouds" aria-hidden="true"><div class="cloud"></div><div class="cloud"></div><div class="cloud"></div></div>
+
+<main class="game">
+  <div class="hud">
+    <span class="lv">LV.1 · FIRST DATE</span>
+    <span id="hudHeart"></span>
+  </div>
+
+  <header class="title">
+    <h1>FIRST DATE QUEST</h1>
+    <p>Player 2 đã được mời</p>
+  </header>
+
+  <!-- Lời mời -->
+  <section class="screen" id="s-intro">
+    <div class="dialog pix">
+      <span class="who" id="whoIntro">ANH</span>
+      <div id="introText"></div>
+    </div>
+    <div class="row no-zone" id="noZone">
+      <button class="btn" id="btnYes" type="button">CÓ ♥</button>
+      <button class="btn ghost" id="btnNo" type="button">KHÔNG</button>
+    </div>
+    <p class="toast" id="noMsg" aria-live="polite"></p>
+  </section>
+
+  <!-- Lộ trình -->
+  <section class="screen" id="s-map" hidden>
+    <div class="dialog pix">
+      <span class="who" id="whoMap">ANH</span>
+      <p id="mapIntro"></p>
+    </div>
+    <dl class="ticket pix" id="ticket"></dl>
+    <ol class="map" id="map"></ol>
+    <div class="notes pix" id="notesBox">
+      <h2>Ghi chú cho Player 2</h2>
+      <ul id="notes"></ul>
+    </div>
+    <p class="end" id="endLine"></p>
+  </section>
+</main>
+
+<script>
+/* =========================================================
+   SỬA LỘ TRÌNH Ở ĐÂY
+   - sprite: coffee, popcorn, tree, museum, vase, gamepad, city, lantern,
+             pho, hotpot, grill, sushi, pizza, snack, boba, icecream, cake, che,
+             scooter, home, heart
+   - map: chữ dùng để tìm trên Google Maps (để "" nếu không muốn hiện link)
+   ========================================================= */
+const PLAN = {
+  from: "ANH",
+  to: "em",
+  intro: [
+    "Chào em! Anh muốn rủ em đi một buổi hẹn đầu tiên.",
+    "Anh đã lên sẵn lộ trình rồi, em chỉ cần mang theo nụ cười thôi.",
+    "Em có đồng ý đi với anh không?"
+  ],
+  date: "Thứ Bảy, 25/10",
+  pickup: "16:30 · Anh qua đón em",
+  dressCode: "Thoải mái, đi giày êm",
+  stages: [
+    { time: "16:30", sprite: "scooter", place: "Anh đón em", desc: "Anh tới trước cửa nhà em, đúng giờ.", map: "" },
+    { time: "17:00", sprite: "vase", place: "Workshop làm gốm", desc: "Mỗi người nặn một món, đổi quà cho nhau.", map: "workshop làm gốm" },
+    { time: "19:00", sprite: "grill", place: "Ăn tối đồ nướng", desc: "Anh nướng, em ăn.", map: "quán nướng" },
+    { time: "20:30", sprite: "icecream", place: "Kem + dạo phố đi bộ", desc: "Vừa ăn kem vừa đi dạo cho tiêu bữa tối.", map: "phố đi bộ" },
+    { time: "21:30", sprite: "home", place: "Đưa em về", desc: "Về tới nhà an toàn là hoàn thành quest.", map: "" }
+  ],
+  notes: [
+    "Nếu mưa, workshop gốm vẫn ở trong nhà nên không sao.",
+    "Em không ăn được món gì thì nhắn anh trước nha."
+  ],
+  ending: "Hẹn gặp em nhé ♥"
+};
+
+(() => {
+  const COLORS = {
+    k: "#2d1e3a", r: "#ff5d8f", p: "#ffb3c9", y: "#ffd84d", w: "#ffffff",
+    b: "#9a6a43", g: "#5cc98f", d: "#2f9a64", c: "#f2a65a", o: "#f27a3c",
+    l: "#b9a6ff", s: "#b8b0c4"
+  };
+  const SPRITES = {
+    heart: ["..kk..kk..",".krrkkrrk.","krwrrrrrrk","krrrrrrrrk","krrrrrrrrk",".krrrrrrk.","..krrrrk..","...krrk...","....kk...."],
+    coffee: ["..s..s....","...s..s...","..s..s....","kkkkkkkk..","kbbbbbbkkk","kwwwwwwk.k","kwwrrwwk.k","kwwwwwwkkk",".kwwwwk...","..kkkk...."],
+    popcorn: ["..w.y.w...",".wywywyw..","wywywywyw.","kkkkkkkkk.","krwrwrwrk.","krwrwrwrk.",".krwrwrk..",".krwrwrk..",".kkkkkkk.."],
+    tree: ["...gggg...","..gggggg..",".gggdgggg.",".ggggggdg.",".gdgggggg.","..gggggg..","....bb....","....bb....","...bbbb...","dddddddddd"],
+    museum: ["....kk....","...kyyk...","..kyyyyk..",".kkkkkkkk.","..s.ss.s..","..s.ss.s..","..s.ss.s..","..s.ss.s..",".kkkkkkkk.","kkkkkkkkkk"],
+    vase: ["...kkkk...","...kook...","..kooook..",".kooyyook.",".koyooyok.",".kooyyook.",".kooooook.","..kooook..","...kkkk..."],
+    gamepad: ["..........",".kkkkkkkk.","kllllllllk","kllklllrlk","klkkklrlyk","kllklllylk","kllkkkkllk",".kk....kk."],
+    city: [".......yy.","......y...","......y...",".......yy.","..........",".kk...kkk.",".kyk..kyk.",".kkkk.kkkk",".kykk.kyyk","kkkkkkkkkk"],
+    lantern: ["....kk....","...kkkk...","..krrrrk..",".krryrrrk.",".krrrrrrk.",".krryrrrk.","..krrrrk..","...kkkk...","....yy....","....y....."],
+    pho: ["..s.s.s...","...s.s.s..","..s.s.s...","kkkkkkkkkk","kwwgwwwgwk","kyywyyywyk",".kcccccck.","..kcccck..","...kkkk..."],
+    hotpot: [".s..s..s..","..s..s..s.","kkkkkkkkkk","kroogroork","krrrrrrrrk","kkkkkkkkkk",".k......k.",".kkkkkkkk.","..o.o.o...","...o.o...."],
+    grill: ["..b.r.b...",".r.b.r.b..","kkkkkkkkkk","k.k.k.k.kk","kkkkkkkkkk",".ksssssk..","..o.o.o...","..k...k...","..k...k..."],
+    sushi: ["..........","..kkkkkk..",".kooooook.",".kowowowk.",".kwwwwwwk.",".kwwwwwwk.",".kkkkkkkk.","..kkkkkk.."],
+    pizza: ["kkkkkkkkkk","kbbbbbbbbk",".kyyryyyk.",".kyyyyryk.","..kyryyk..","..kyyyyk..","...kyyk...","...kyrk...","....kk...."],
+    snack: ["....k.....","...kook...","...kook...","....k.....","...kook...","...kook...","....k.....","...kook...","...kook...","....k....."],
+    boba: ["....kk....","....kk....",".kkkkkkkk.",".kppppppk.",".kppppppk.","..kppppk..","..kbpbpk..","..kpbpbk..","...kkkk..."],
+    icecream: ["...kkkk...","..kppppk..",".kppwpppk.",".kppppppk.",".kkkkkkkk.","..kyyyyk..","..kybyyk..","...kyyk...","...kyyk...","....kk...."],
+    cake: ["....r.....","....k.....",".kkkkkkkk.","kwwwwwwwwk","kppppppppk","kwwwwwwwwk","kbbbbbbbbk","kkkkkkkkkk"],
+    che: [".kkkkkkkk.",".kwwwwwwk.",".kggggggk.",".kyyyyyyk.","..kllllk..","..kbbbbk..","...kkkk...","....kk....","...kkkk..."],
+    scooter: ["..........","......kk..",".......k..","..kkkkkk..",".krrrrrkk.","krrrrrrrrk","kkkkkkkkkk",".kk....kk.","kwwk..kwwk",".kk....kk."],
+    home: ["....kk....","...krrk...","..krrrrk..",".krrrrrrk.","krrrrrrrrk",".kwwwwwwk.",".kwykkwyk.",".kwwwkbwk.",".kwwwkbwk.",".kkkkkkkk."]
+  };
+
+  function drawSprite(name, scale) {
+    const rows = SPRITES[name] || SPRITES.heart;
+    const c = document.createElement("canvas");
+    c.width = 10 * scale; c.height = 10 * scale;
+    const ctx = c.getContext("2d");
+    const yOff = Math.floor((10 - rows.length) / 2);
+    rows.forEach((row, y) => [...row].forEach((ch, x) => {
+      if (!COLORS[ch]) return;
+      ctx.fillStyle = COLORS[ch];
+      ctx.fillRect(x * scale, (y + yOff) * scale, scale, scale);
+    }));
+    c.setAttribute("aria-hidden", "true");
+    return c;
+  }
+
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+  // Intro
+  $("hudHeart").appendChild(drawSprite("heart", 2));
+  $("whoIntro").textContent = $("whoMap").textContent = PLAN.from.toUpperCase();
+  PLAN.intro.forEach((line, i) => {
+    const p = el("p", null, line);
+    if (i === PLAN.intro.length - 1) { p.append(" "); p.appendChild(el("span", "blink", "▼")); }
+    $("introText").appendChild(p);
+  });
+
+  // Map
+  $("mapIntro").textContent = "Yay! Đây là bản đồ buổi hẹn của mình. " + (PLAN.to ? PLAN.to[0].toUpperCase() + PLAN.to.slice(1) : "Em") + " chỉ cần đi theo con đường này thôi.";
+  [["Ngày", PLAN.date], ["Đón", PLAN.pickup], ["Trang phục", PLAN.dressCode]].forEach(([k, v]) => {
+    if (!v) return;
+    const d = el("div"); d.append(el("dt", null, k), el("dd", null, v));
+    $("ticket").appendChild(d);
+  });
+  PLAN.stages.forEach((s, i) => {
+    const li = el("li", "stage");
+    const node = el("div", "node"); node.appendChild(drawSprite(s.sprite, 5));
+    const info = el("div", "info pix");
+    const top = el("div", "top");
+    top.append(el("span", "stg", i === PLAN.stages.length - 1 ? "STAGE CUỐI" : "STAGE " + (i + 1)), el("span", "time", s.time));
+    info.append(top, el("h3", null, s.place));
+    if (s.desc) info.appendChild(el("p", null, s.desc));
+    if (s.map) {
+      const a = el("a", "map-link", "Xem trên bản đồ ▸");
+      a.href = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(s.map);
+      a.target = "_blank"; a.rel = "noopener";
+      info.appendChild(a);
+    }
+    li.append(node, info);
+    $("map").appendChild(li);
+  });
+  if (PLAN.notes && PLAN.notes.length) PLAN.notes.forEach((n) => $("notes").appendChild(el("li", null, n)));
+  else $("notesBox").hidden = true;
+  $("endLine").textContent = PLAN.ending || "";
+
+  function showMap() {
+    $("s-intro").hidden = true;
+    $("s-map").hidden = false;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  // Nút KHÔNG bỏ chạy
+  const NO_LINES = ["Chắc chưa đó?", "Bấm nhầm rồi kìa!", "Nút này hư rồi em ơi", "Thử nút bên kia đi", "Thôi mà…"];
+  let noCount = 0;
+  function dodge() {
+    const zone = $("noZone"), btn = $("btnNo");
+    const maxX = Math.max(40, (zone.clientWidth - btn.offsetWidth) / 2 - 10);
+    const x = (Math.random() * 2 - 1) * maxX, y = (Math.random() * 2 - 1) * 28;
+    btn.style.transform = `translate(${x}px, ${y}px) scale(${Math.max(0.5, 1 - noCount * 0.1)})`;
+    $("noMsg").textContent = NO_LINES[Math.min(noCount, NO_LINES.length - 1)];
+    noCount++;
+    if (noCount > NO_LINES.length) { btn.hidden = true; $("noMsg").textContent = "Nút KHÔNG đã bỏ chạy mất rồi ♥"; }
+  }
+  $("btnNo").addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse") dodge(); });
+  $("btnNo").addEventListener("click", (e) => { e.preventDefault(); dodge(); });
+  $("btnYes").addEventListener("click", showMap);
+})();
+</script>
+</body>
+</html>
